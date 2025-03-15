@@ -1,72 +1,24 @@
 require("dotenv").config();
 const fastify = require("fastify")({ logger: true });
-const { OAuth2Client } = require("google-auth-library");
-const { MongoClient, ObjectId } = require("mongodb");
-const jwt = require("jsonwebtoken");
+const { connectDB } = require("./config/db");
 
-// Connect -> MongoDB
-const client = new MongoClient(process.env.MONGO_URI);
-let db;
-
-async function connectDB() {
-  try {
-    await client.connect();
-    db = client.db("doctorDB");
-    console.log("Connected to MongoDB");
-  } catch (error) {
-    console.error("MongoDB Connection Error:", error);
-    process.exit(1);
-  }
-}
-connectDB();
-
-// Google Auth Setup
+// Security & Performance Plugins
 fastify.register(require("@fastify/cors"), {
   origin: "*",
+  methods: ["GET", "POST", "PUT", "DELETE"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+  credentials: true,
+});
+fastify.register(require("@fastify/helmet"));
+fastify.register(require("@fastify/rate-limit"), {
+  max: 100,
+  timeWindow: "1 minute",
 });
 
-const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+connectDB();
 
-// JWT Secret Key
-const SECRET_KEY = process.env.JWT_SECRET;
-
-// Google Authentication Route
-fastify.post("/auth/google", async (req, reply) => {
-  try {
-    const { token } = req.body;
-    const ticket = await googleClient.verifyIdToken({
-      idToken: token,
-      audience: process.env.GOOGLE_CLIENT_ID,
-    });
-
-    const payload = ticket.getPayload();
-    const { sub, email, name, picture } = payload;
-
-    // Check if user exists in MongoDB
-    const users = db.collection("users");
-    let user = await users.findOne({ googleId: sub });
-
-    if (!user) {
-      const result = await users.insertOne({
-        name,
-        email,
-        googleId: sub,
-        picture,
-      });
-      user = await users.findOne({ _id: result.insertedId }); // Fetch inserted user
-    }
-
-    // Generatating JWT Token
-    const jwtToken = jwt.sign({ userId: user._id }, SECRET_KEY, {
-      expiresIn: "1h",
-    });
-
-    reply.send({ token: jwtToken, user: { name, email, picture } });
-  } catch (error) {
-    console.error(error);
-    reply.status(400).send({ error: "Google Authentication Failed" });
-  }
-});
+// Register Routes
+fastify.register(require("./routes/authRoutes"));
 
 fastify.listen({ port: 5000 }, (err, address) => {
   if (err) {
