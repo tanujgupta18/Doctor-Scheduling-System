@@ -9,41 +9,61 @@ const googleAuth = async (req, reply) => {
   try {
     const { token } = req.body;
     if (!token) {
+      // console.error("No token received in request body.");
       return reply.status(400).send({ error: "Missing token" });
     }
 
-    const ticket = await googleClient.verifyIdToken({
-      idToken: token,
-      audience: process.env.GOOGLE_CLIENT_ID,
-    });
+    // console.log("Backend received Google Token:", token);
+
+    let ticket;
+    try {
+      ticket = await googleClient.verifyIdToken({
+        idToken: token,
+        audience: process.env.GOOGLE_CLIENT_ID,
+      });
+    } catch (verificationError) {
+      // console.error("Google Token Verification Failed:", verificationError);
+      return reply.status(400).send({ error: "Invalid Google token" });
+    }
+
+    // console.log("Token verified by Google");
 
     const payload = ticket.getPayload();
+    // console.log("Google Payload:", payload);
+
     const { sub, email, name, picture } = payload;
 
     const db = getDB();
     const users = db.collection("users");
 
-    let user = await users.findOne({ googleId: sub });
+    const user = await users.findOneAndUpdate(
+      { googleId: sub },
+      {
+        $setOnInsert: {
+          name,
+          email,
+          googleId: sub,
+          picture,
+          role: email.includes("doctor") ? "doctor" : "user",
+          profile: {},
+        },
+      },
+      { upsert: true, returnDocument: "after" }
+    );
 
-    if (!user) {
-      const result = await users.insertOne({
-        name,
-        email,
-        googleId: sub,
-        picture,
-        profile: {},
-      });
-      user = await users.findOne({ _id: result.insertedId });
-    }
+    // console.log("User logged in:", user);
 
-    const jwtToken = jwt.sign({ userId: user._id }, SECRET_KEY, {
-      expiresIn: "1h",
-    });
+    // Generate JWT token
+    const jwtToken = jwt.sign(
+      { userId: user._id, role: user.role },
+      SECRET_KEY,
+      { expiresIn: "1d" }
+    );
 
-    reply.send({ token: jwtToken, user: { name, email, picture } });
+    reply.send({ success: true, user, token: jwtToken });
   } catch (error) {
-    console.error(error);
-    reply.status(400).send({ error: "Google Authentication Failed" });
+    // console.error("Google Authentication Failed:", error);
+    reply.status(400).send({ error: "Authentication Failed" });
   }
 };
 

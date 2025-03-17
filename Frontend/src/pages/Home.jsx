@@ -1,4 +1,4 @@
-import React, { useContext } from "react";
+import React, { useContext, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { GoogleLogin } from "@react-oauth/google";
 import AuthContext from "../context/AuthContext";
@@ -6,11 +6,22 @@ import AuthContext from "../context/AuthContext";
 const Home = () => {
   const { login } = useContext(AuthContext);
   const navigate = useNavigate();
+  const [loading, setLoading] = useState(false);
 
   const handleSuccess = async (credentialResponse) => {
+    setLoading(true);
+
+    if (!credentialResponse?.credential) {
+      // console.error("No credential received from Google");
+      alert("Google login failed. Please try again.");
+      setLoading(false);
+      return;
+    }
+
+    // console.log("Google Token Received:", credentialResponse.credential);
+
     try {
-      // console.log("Google Token Received:", credentialResponse.credential);
-      const response = await fetch("http://localhost:5000/auth/google", {
+      const response = await fetch("http://localhost:5000/api/auth/google", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -20,32 +31,42 @@ const Home = () => {
         }),
       });
 
+      // console.log("Sending request to backend...");
+
+      if (!response.ok) {
+        throw new Error(`Server responded with ${response.status}`);
+      }
+
       const data = await response.json();
       // console.log("Server Response:", data);
 
-      if (data.token) {
-        login(
-          {
-            name: data.user.name,
-            email: data.user.email,
-            picture: data.user.picture,
-          },
-          data.token
-        );
+      if (data?.success && data?.user && data?.token) {
+        login(data.user, data.token);
         navigate("/dashboard");
+      } else {
+        // console.error("Unexpected server response format:", data);
+        throw new Error("Invalid response from server");
       }
     } catch (error) {
-      console.error("Login Failed", error);
+      // console.error("Login Failed:", error);
+      alert("Google Sign-in failed. Please try again.");
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gray-100">
       <h1 className="text-4xl font-bold mb-6">Doctor Scheduling System</h1>
-      <GoogleLogin
-        onSuccess={handleSuccess}
-        onError={() => console.log("Google Sign-in Failed")}
-      />
+
+      {loading ? (
+        <p className="text-gray-600">Processing login...</p>
+      ) : (
+        <GoogleLogin
+          onSuccess={handleSuccess}
+          onError={() => alert("Google Sign-in Failed")}
+        />
+      )}
     </div>
   );
 };

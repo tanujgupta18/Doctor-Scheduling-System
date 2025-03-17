@@ -8,17 +8,26 @@ export const AuthProvider = ({ children }) => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const storedUser = localStorage.getItem("user");
+    const storedUser = JSON.parse(localStorage.getItem("user"));
     if (storedUser) {
-      setUser(JSON.parse(storedUser));
+      setUser(storedUser);
     }
   }, []);
 
   const login = (userData, token) => {
-    localStorage.setItem("user", JSON.stringify(userData));
+    if (!userData || !userData._id) {
+      // console.error("Missing user ID in login data:", userData);
+      alert("Login failed. Please try again.");
+      return;
+    }
+
+    // console.log("Storing user and token in localStorage.");
+    localStorage.setItem(
+      "user",
+      JSON.stringify({ ...userData, id: userData._id })
+    );
     localStorage.setItem("token", token);
-    setUser(userData);
-    navigate("/dashboard");
+    setUser({ ...userData, id: userData._id });
   };
 
   const logout = () => {
@@ -29,7 +38,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, logout }}>
+    <AuthContext.Provider value={{ user, setUser, login, logout }}>
       {children}
     </AuthContext.Provider>
   );
