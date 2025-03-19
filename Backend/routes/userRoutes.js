@@ -108,10 +108,11 @@ async function userRoutes(fastify, options) {
               },
               body: {
                 type: "object",
-                required: ["condition", "description"],
+                required: ["condition", "description", "date"],
                 properties: {
                   condition: { type: "string", minLength: 3 },
                   description: { type: "string", minLength: 5 },
+                  date: { type: "string", format: "date" },
                 },
               },
             },

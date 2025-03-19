@@ -143,17 +143,18 @@ async function fetchMedicalHistory(req, reply) {
 async function addMedicalHistoryEntry(req, reply) {
   try {
     const { id } = req.params;
+
     if (!ObjectId.isValid(id)) {
       return reply
         .code(400)
         .send({ success: false, message: "Invalid user ID format" });
     }
 
-    const { condition, description } = req.body;
-    if (!condition || !description) {
+    const { condition, description, date } = req.body;
+    if (!condition || !description || !date) {
       return reply.code(400).send({
         success: false,
-        message: "Condition and description are required",
+        message: "Condition, description, and date are required",
       });
     }
 
@@ -161,7 +162,7 @@ async function addMedicalHistoryEntry(req, reply) {
       _id: new ObjectId(),
       condition,
       description,
-      date: new Date(),
+      date,
     };
 
     const result = await addMedicalHistory(id, historyEntry);

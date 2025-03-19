@@ -163,10 +163,9 @@ async function addMedicalHistory(id, historyEntry) {
     //   Assign a unique ID to this medical history entry
     historyEntry._id = new ObjectId();
 
-    //   Use provided date or default to current date
-    historyEntry.date = historyEntry.date
-      ? new Date(historyEntry.date)
-      : new Date();
+    let date = historyEntry.date ? new Date(historyEntry.date) : new Date();
+    date.setUTCHours(0, 0, 0, 0);
+    historyEntry.date = date.toISOString().split("T")[0];
 
     const result = await db
       .collection("users")
