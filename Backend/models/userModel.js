@@ -1,15 +1,14 @@
 const { getDB } = require("../config/db");
 const { ObjectId } = require("mongodb");
 
-//   Helper function to validate user data before update
 const validateUserData = (data) => {
-  if (!data.name || typeof data.name !== "string") return "Invalid user name";
+  if (data.name && typeof data.name !== "string") return "Invalid user name";
 
-  if (data.email && !/\S+@\S+\.\S+/.test(data.email)) {
+  if (data.email && !/\S+@\S+\.\S+/.test(data.email))
     return "Invalid email format";
-  }
 
   if (data.age && (isNaN(data.age) || data.age < 0)) return "Invalid age";
+
   if (data.gender && !["Male", "Female", "Other"].includes(data.gender))
     return "Invalid gender";
 
@@ -21,7 +20,6 @@ async function createUser(userData) {
   try {
     const db = getDB();
 
-    //   Validate user data
     const validationError = validateUserData(userData);
     if (validationError) throw new Error(validationError);
 
@@ -32,8 +30,16 @@ async function createUser(userData) {
     if (existingUser) throw new Error("User with this email already exists");
 
     const newUser = {
-      ...userData,
-      medicalHistory: userData.medicalHistory || [],
+      name: userData.name,
+      email: userData.email,
+      googleId: userData.googleId || null,
+      picture: userData.picture || null,
+      role: userData.role || "user",
+      profile: {
+        age: userData.age || null,
+        gender: userData.gender || null,
+        medicalHistory: [],
+      },
     };
 
     //   Insert new user
@@ -41,7 +47,7 @@ async function createUser(userData) {
     // console.log("User created successfully:", result.insertedId);
     return result;
   } catch (error) {
-    // console.error("Error creating user:", error.message);
+    console.error("Error creating user:", error.message);
     throw error;
   }
 }
@@ -74,43 +80,70 @@ async function getUserById(id) {
     // console.log("User fetched successfully:", user);
     return user;
   } catch (error) {
-    // console.error("Error fetching user:", error.message);
+    console.error("Error fetching user:", error.message);
     throw error;
   }
 }
 
 //   Update User
 async function updateUser(id, userData) {
-  try {
-    const db = getDB();
-    if (!ObjectId.isValid(id)) throw new Error("Invalid user ID format");
+  const db = getDB();
+  // console.log("Updating user ID:", id);
 
-    const validationError = validateUserData(userData);
-    if (validationError) throw new Error(validationError);
-
-    const { _id, ...updateData } = userData;
-
-    if (!updateData.email) {
-      const existingUser = await db
-        .collection("users")
-        .findOne({ _id: new ObjectId(id) });
-      if (existingUser) updateData.email = existingUser.email;
-    }
-
-    const result = await db
-      .collection("users")
-      .updateOne({ _id: new ObjectId(id) }, { $set: updateData });
-
-    if (result.matchedCount === 0) {
-      // console.error("No user found with ID:", id);
-      throw new Error("User not found");
-    }
-
-    return { success: true, message: "User updated successfully" };
-  } catch (error) {
-    // console.error("Error updating user:", error);
-    return { success: false, message: error.message };
+  if (!ObjectId.isValid(id)) {
+    console.error("Invalid ID format");
+    throw new Error("Invalid user ID format");
   }
+
+  const validationError = validateUserData(userData);
+  if (validationError) {
+    console.error("Validation failed:", validationError);
+    throw new Error(validationError);
+  }
+
+  const { _id, ...updateData } = userData;
+
+  if (!updateData.email) {
+    const existingUser = await db
+      .collection("users")
+      .findOne({ _id: new ObjectId(id) });
+
+    if (existingUser) updateData.email = existingUser.email;
+  }
+
+  const updateFields = {
+    ...(userData.name && { name: userData.name }),
+    ...(userData.picture && { picture: userData.picture }),
+  };
+
+  if (userData.age !== undefined)
+    updateFields["profile.age"] = parseInt(userData.age, 10);
+  if (userData.gender !== undefined)
+    updateFields["profile.gender"] = userData.gender;
+
+  console.log("Final update object to set in DB:", updateFields);
+
+  const result = await db
+    .collection("users")
+    .updateOne({ _id: new ObjectId(id) }, { $set: updateFields });
+
+  console.log("MongoDB update result:", result);
+
+  if (result.matchedCount === 0) {
+    console.error("No user found with ID:", id);
+    throw new Error("User not found");
+  }
+
+  if (result.modifiedCount === 0) {
+    console.warn("User found but no fields were modified.");
+  }
+
+  return {
+    success: true,
+    message: "User updated successfully",
+    matchedCount: result.matchedCount,
+    modifiedCount: result.modifiedCount,
+  };
 }
 
 // Medical History Functions
@@ -125,12 +158,12 @@ async function getMedicalHistory(id) {
       .collection("users")
       .findOne(
         { _id: new ObjectId(id) },
-        { projection: { medicalHistory: 1 } }
+        { projection: { "profile.medicalHistory": 1 } }
       );
 
-    if (!user || !user.medicalHistory) return [];
+    if (!user || !user.profile?.medicalHistory) return [];
 
-    return user.medicalHistory.map((entry) => ({
+    return user.profile.medicalHistory.map((entry) => ({
       ...entry,
       date: entry.date ? new Date(entry.date) : new Date("2000-01-01"),
     }));
@@ -171,7 +204,7 @@ async function addMedicalHistory(id, historyEntry) {
       .collection("users")
       .updateOne(
         { _id: new ObjectId(id) },
-        { $push: { medicalHistory: historyEntry } }
+        { $push: { "profile.medicalHistory": historyEntry } }
       );
 
     return result;
@@ -189,12 +222,12 @@ async function deleteMedicalHistory(id, historyId) {
       throw new Error("Invalid user ID or history ID format");
     }
 
-    const result = await db
-      .collection("users")
-      .updateOne(
-        { _id: new ObjectId(id) },
-        { $pull: { medicalHistory: { _id: new ObjectId(historyId) } } }
-      );
+    const result = await db.collection("users").updateOne(
+      { _id: new ObjectId(id) },
+      {
+        $pull: { "profile.medicalHistory": { _id: new ObjectId(historyId) } },
+      }
+    );
 
     if (result.modifiedCount === 0) {
       throw new Error("No matching medical history entry found to delete");

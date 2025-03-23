@@ -1,6 +1,6 @@
 const { OAuth2Client } = require("google-auth-library");
 const jwt = require("jsonwebtoken");
-const { getDB } = require("../config/db");
+const { findOrCreateUserByGoogle } = require("../models/authModel");
 
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 const SECRET_KEY = process.env.JWT_SECRET;
@@ -9,60 +9,39 @@ const googleAuth = async (req, reply) => {
   try {
     const { token } = req.body;
     if (!token) {
-      // console.error("No token received in request body.");
       return reply.status(400).send({ error: "Missing token" });
     }
 
-    // console.log("Backend received Google Token:", token);
-
-    let ticket;
-    try {
-      ticket = await googleClient.verifyIdToken({
-        idToken: token,
-        audience: process.env.GOOGLE_CLIENT_ID,
-      });
-    } catch (verificationError) {
-      // console.error("Google Token Verification Failed:", verificationError);
-      return reply.status(400).send({ error: "Invalid Google token" });
-    }
-
-    // console.log("Token verified by Google");
+    const ticket = await googleClient.verifyIdToken({
+      idToken: token,
+      audience: process.env.GOOGLE_CLIENT_ID,
+    });
 
     const payload = ticket.getPayload();
-    // console.log("Google Payload:", payload);
-
     const { sub, email, name, picture } = payload;
 
-    const db = getDB();
-    const users = db.collection("users");
+    const user = await findOrCreateUserByGoogle({ sub, email, name, picture });
 
-    const user = await users.findOneAndUpdate(
-      { googleId: sub },
-      {
-        $setOnInsert: {
-          name,
-          email,
-          googleId: sub,
-          picture,
-          role: email.includes("doctor") ? "doctor" : "user",
-          profile: {},
-        },
-      },
-      { upsert: true, returnDocument: "after" }
-    );
-
-    // console.log("User logged in:", user);
-
-    // Generate JWT token
+    // Create JWT token with cleaner payload
     const jwtToken = jwt.sign(
-      { userId: user._id, role: user.role },
+      { userId: user._id.toString(), role: user.role },
       SECRET_KEY,
       { expiresIn: "1d" }
     );
 
-    reply.send({ success: true, user, token: jwtToken });
+    reply.send({
+      success: true,
+      user: {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        picture: user.picture,
+      },
+      token: jwtToken,
+    });
   } catch (error) {
-    // console.error("Google Authentication Failed:", error);
+    console.error("Google Auth Failed:", error.message);
     reply.status(400).send({ error: "Authentication Failed" });
   }
 };

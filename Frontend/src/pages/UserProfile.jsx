@@ -26,8 +26,8 @@ const UserProfile = () => {
           if (data && data.user) {
             setProfile({
               name: data.user.name || "",
-              age: data.user.age || "",
-              gender: data.user.gender || "",
+              age: data.user.profile?.age || "",
+              gender: data.user.profile?.gender || "",
               picture: data.user.picture || "/user.png",
             });
           }
@@ -51,17 +51,31 @@ const UserProfile = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    // console.log("Sending updated data:", profile);
+    console.log("Sending updated data:", profile);
     setLoading(true);
 
     try {
-      const updatedProfile = await updateUserProfile(user.id, profile);
-      // console.log("API Response:", updatedProfile);
+      const cleanedProfile = {
+        ...profile,
+        age: profile.age ? parseInt(profile.age, 10) : null,
+      };
+      const updatedProfile = await updateUserProfile(user.id, cleanedProfile);
+      console.log("API Response:", updatedProfile);
 
       if (updatedProfile.success) {
         showMessage("Profile updated successfully!", "success");
 
-        const updatedUserData = { ...user, ...profile };
+        const updatedUserData = {
+          ...user,
+          name: profile.name,
+          picture: profile.picture,
+          profile: {
+            ...user.profile,
+            age: profile.age,
+            gender: profile.gender,
+          },
+        };
+
         login(updatedUserData, localStorage.getItem("token"));
         localStorage.setItem("user", JSON.stringify(updatedUserData));
 
@@ -70,7 +84,7 @@ const UserProfile = () => {
         throw new Error("Update failed");
       }
     } catch (error) {
-      // console.error("Profile update failed:", error);
+      console.error("Profile update failed:", error);
       showMessage("Error updating profile. Please try again.", "error");
     } finally {
       setLoading(false);
@@ -194,5 +208,3 @@ const UserProfile = () => {
 };
 
 export default UserProfile;
-
-// Best Version After Medical History Working

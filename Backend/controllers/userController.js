@@ -24,20 +24,6 @@ const validateUserData = (data) => {
 // Add a new user
 async function addUser(req, reply) {
   try {
-    const validationError = validateUserData(req.body);
-    if (validationError) {
-      return reply.code(400).send({ success: false, error: validationError });
-    }
-
-    const { email } = req.body;
-    const existingUser = await getAllUsers({ email });
-
-    if (existingUser.length > 0) {
-      return reply
-        .code(400)
-        .send({ success: false, error: "User with this email already exists" });
-    }
-
     const result = await createUser(req.body);
     reply.code(201).send({
       success: true,
@@ -46,7 +32,7 @@ async function addUser(req, reply) {
     });
   } catch (error) {
     console.error("Error adding user:", error);
-    reply.code(500).send({ success: false, error: "Internal Server Error" });
+    reply.code(500).send({ success: false, error: error.message });
   }
 }
 
@@ -78,7 +64,11 @@ async function editUser(req, reply) {
       delete updateData.email;
     }
 
-    const result = await updateUser(req.params.id, updateData);
+    const profileUpdate = {};
+    if (req.body.age) profileUpdate.age = req.body.age;
+    if (req.body.gender) profileUpdate.gender = req.body.gender;
+
+    const result = await updateUser(req.params.id, profileUpdate);
     console.log("Database Update Result:", result);
 
     if (result.modifiedCount === 0) {
