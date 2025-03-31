@@ -30,107 +30,129 @@ const Navbar = () => {
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, []);
 
+  const isUser = user?.role === "user";
+  const isDoctor = user?.role === "doctor";
+
   return (
-    <nav className="bg-gradient-to-r from-blue-500 to-blue-700 p-4 shadow-md">
-      <div className="container mx-auto flex justify-between items-center">
-        <Link to="/" className="text-2xl font-bold text-white tracking-wide">
-          Doctor Scheduling
+    <nav className="bg-gradient-to-r from-slate-700 to-gray-800 py-3 px-4 shadow-md">
+      <div className="container mx-auto flex justify-between items-center min-h-[64px]">
+        <Link
+          to={isDoctor ? "/doctor-dashboard" : "/dashboard"}
+          className="text-2xl font-bold text-gray-100 tracking-wide hover:text-emerald-300 transition"
+        >
+          DocSchedule
         </Link>
 
-        {/* Navigation Links - Desktop */}
+        {/* Desktop Nav */}
         <div className="hidden md:flex space-x-6">
           <Link
-            to="/dashboard"
-            className="text-white hover:text-gray-200 transition"
+            to={isDoctor ? "/doctor-dashboard" : "/dashboard"}
+            className="text-gray-100 hover:text-emerald-300 transition"
           >
             Dashboard
           </Link>
-          <Link
-            to="/appointments"
-            className="text-white hover:text-gray-200 transition"
-          >
-            Appointments
-          </Link>
-          <Link
-            to="/medical-history"
-            className="text-white hover:text-gray-200 transition"
-          >
-            Medical History
-          </Link>
-          <Link
-            to="/doctor-list"
-            className="text-white hover:text-gray-200 transition"
-          >
-            Find a Doctor
-          </Link>
-          <Link
-            to="/payment-history"
-            className="text-white hover:text-gray-200 transition"
-          >
-            Payments
-          </Link>
+
+          {isDoctor && (
+            <Link
+              to="/appointments"
+              className="text-gray-100 hover:text-emerald-300 transition"
+            >
+              Appointments
+            </Link>
+          )}
+
+          {isUser && (
+            <>
+              <Link
+                to="/medical-history"
+                className="text-gray-100 hover:text-emerald-300 transition"
+              >
+                Medical History
+              </Link>
+              <Link
+                to="/doctor-list"
+                className="text-gray-100 hover:text-emerald-300 transition"
+              >
+                Find a Doctor
+              </Link>
+              <Link
+                to="/payment-history"
+                className="text-gray-100 hover:text-emerald-300 transition"
+              >
+                Payments
+              </Link>
+            </>
+          )}
         </div>
 
         {/* Mobile Menu Button */}
         <button
-          className="md:hidden text-white text-2xl focus:outline-none"
+          className="md:hidden text-gray-100 text-2xl focus:outline-none"
           onClick={() => setMenuOpen((prev) => !prev)}
         >
           {menuOpen ? <FaTimes /> : <FaBars />}
         </button>
 
-        {/* Mobile Navigation */}
+        {/* Mobile Nav */}
         {menuOpen && (
-          <div className="absolute top-16 left-0 w-full bg-blue-600 p-4 space-y-4 text-center shadow-md md:hidden">
+          <div className="absolute top-16 left-0 w-full bg-gray-800 p-4 space-y-4 text-center shadow-md md:hidden z-50">
             <Link
-              to="/dashboard"
-              className="block text-white hover:text-gray-200"
+              to={isDoctor ? "/doctor-dashboard" : "/dashboard"}
+              className="block text-gray-100 hover:text-emerald-300"
               onClick={() => setMenuOpen(false)}
             >
               Dashboard
             </Link>
-            <Link
-              to="/appointments"
-              className="block text-white hover:text-gray-200"
-              onClick={() => setMenuOpen(false)}
-            >
-              Appointments
-            </Link>
-            <Link
-              to="/medical-history"
-              className="block text-white hover:text-gray-200"
-              onClick={() => setMenuOpen(false)}
-            >
-              Medical History
-            </Link>
-            <Link
-              to="/doctor-list"
-              className="block text-white hover:text-gray-200"
-              onClick={() => setMenuOpen(false)}
-            >
-              Find a Doctor
-            </Link>
-            <Link
-              to="/payment-history"
-              className="block text-white hover:text-gray-200"
-              onClick={() => setMenuOpen(false)}
-            >
-              Payments
-            </Link>
+
+            {isDoctor && (
+              <Link
+                to="/appointments"
+                className="block text-gray-100 hover:text-emerald-300"
+                onClick={() => setMenuOpen(false)}
+              >
+                Appointments
+              </Link>
+            )}
+
+            {isUser && (
+              <>
+                <Link
+                  to="/medical-history"
+                  className="block text-gray-100 hover:text-emerald-300"
+                  onClick={() => setMenuOpen(false)}
+                >
+                  Medical History
+                </Link>
+                <Link
+                  to="/doctor-list"
+                  className="block text-gray-100 hover:text-emerald-300"
+                  onClick={() => setMenuOpen(false)}
+                >
+                  Find a Doctor
+                </Link>
+                <Link
+                  to="/payment-history"
+                  className="block text-gray-100 hover:text-emerald-300"
+                  onClick={() => setMenuOpen(false)}
+                >
+                  Payments
+                </Link>
+              </>
+            )}
           </div>
         )}
 
-        {/* Profile Dropdown */}
+        {/* Profile Dropdown (Doctor/User) */}
         {user && (
-          <div className="relative" ref={dropdownRef}>
+          <div className="relative ml-4" ref={dropdownRef}>
             <button
               onClick={() => setDropdownOpen((prev) => !prev)}
-              className="flex items-center space-x-2 text-white hover:bg-blue-800 p-2 rounded-lg transition"
+              className="flex items-center space-x-2 text-white hover:bg-slate-600 p-2 rounded-lg transition"
             >
               <img
                 src={user.picture || "/user.png"}
                 alt="User"
-                className="w-10 h-10 rounded-full border-2 border-white hover:scale-105 transition"
+                className="w-9 h-9 rounded-full border-2 border-gray-500 hover:scale-105 transition"
                 crossOrigin="anonymous"
                 referrerPolicy="no-referrer"
                 onError={(e) => {
@@ -138,22 +160,24 @@ const Navbar = () => {
                   e.target.src = "/user.png";
                 }}
               />
-              <span className="hidden sm:block font-semibold">
-                {user.name || "User"}
-              </span>
+              <div className="hidden sm:block text-left leading-tight">
+                <p className="text-sm font-semibold text-gray-100">
+                  {user.name}
+                </p>
+                <p className="text-xs text-gray-300 capitalize mt-0.5">
+                  {user.role}
+                </p>
+              </div>
             </button>
 
-            {/* Dropdown Menu */}
             {dropdownOpen && (
-              <div className="absolute right-0 mt-3 w-52 bg-white text-black shadow-lg rounded-lg border border-gray-200 overflow-hidden transition-all">
+              <div className="absolute right-0 mt-3 w-52 bg-white text-black shadow-lg rounded-lg border border-gray-200 overflow-hidden z-50">
                 <Link
-                  to={
-                    user.role === "doctor" ? "/doctor-profile" : "/user-profile"
-                  }
+                  to={isDoctor ? "/doctor-profile" : "/user-profile"}
                   className="flex items-center px-4 py-3 hover:bg-gray-100 transition"
                   onClick={() => setDropdownOpen(false)}
                 >
-                  <FaUserCircle className="mr-2 text-blue-500" />
+                  <FaUserCircle className="mr-2 text-slate-700" />
                   <span>View Profile</span>
                 </Link>
 

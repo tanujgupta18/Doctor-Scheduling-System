@@ -1,33 +1,64 @@
 const { getDB } = require("../config/db");
-const { ObjectId } = require("mongodb");
 
-async function findOrCreateUserByGoogle({ sub, email, name, picture }) {
-  const db = getDB();
-  const users = db.collection("users");
+async function findOrCreateUserByGoogle({ sub, email, name, picture, role }) {
+  try {
+    const db = getDB();
 
-  const role = email.includes("doctor") ? "doctor" : "user";
+    if (role !== "doctor" && role !== "user") {
+      throw new Error("Invalid role provided");
+    }
 
-  const result = await users.findOneAndUpdate(
-    { googleId: sub },
-    {
-      $setOnInsert: {
-        name,
-        email,
+    const collection = db.collection(role === "doctor" ? "doctors" : "users");
+
+    let insertDoc;
+
+    if (role === "doctor") {
+      // Doctor required fields: name, specialization, availability
+      insertDoc = {
+        name: name || "Unnamed Doctor",
+        email: email || "",
         googleId: sub,
-        picture,
-        role,
+        picture: picture || "",
+        role: "doctor",
+        specialization: "",
+        availability: [],
+        createdAt: new Date(),
+      };
+    } else {
+      // User required fields: name, email, profile
+      insertDoc = {
+        name: name || "Unnamed User",
+        email: email || "",
+        googleId: sub,
+        picture: picture || "",
+        role: "user",
         profile: {
           age: null,
           gender: null,
           medicalHistory: [],
         },
         createdAt: new Date(),
-      },
-    },
-    { upsert: true, returnDocument: "after" }
-  );
+      };
+    }
 
-  return result.value || result;
+    await collection.updateOne(
+      { googleId: sub },
+      { $setOnInsert: insertDoc },
+      { upsert: true }
+    );
+
+    // Fetch the user after insert
+    const user = await collection.findOne({ googleId: sub });
+
+    if (!user) {
+      throw new Error("User creation failed after upsert.");
+    }
+
+    return user;
+  } catch (err) {
+    console.error("findOrCreateUserByGoogle ERROR:", err);
+    throw err;
+  }
 }
 
 module.exports = {

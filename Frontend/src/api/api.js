@@ -142,3 +142,39 @@ export const deleteMedicalHistory = async (userId, historyId) => {
     );
   }
 };
+
+// ------------------ Doctor APIs ------------------ //
+
+// Create a new doctor profile
+export const createDoctorProfile = async (doctorData) => {
+  try {
+    const response = await API.post("/doctors", doctorData);
+    return response.data;
+  } catch (error) {
+    throw (
+      error.response?.data || { message: "Failed to create doctor profile" }
+    );
+  }
+};
+
+// Update an existing doctor profile
+export const updateDoctorProfile = async (doctorId, updatedData) => {
+  try {
+    const response = await API.put(`/doctors/${doctorId}`, updatedData);
+    return response.data;
+  } catch (error) {
+    throw (
+      error.response?.data || { message: "Failed to update doctor profile" }
+    );
+  }
+};
+
+// Fetch a doctor's profile by ID
+export const getDoctorProfile = async (doctorId) => {
+  try {
+    const response = await API.get(`/doctors/${doctorId}`);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { message: "Failed to fetch doctor profile" };
+  }
+};

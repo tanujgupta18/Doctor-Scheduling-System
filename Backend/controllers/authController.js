@@ -7,9 +7,13 @@ const SECRET_KEY = process.env.JWT_SECRET;
 
 const googleAuth = async (req, reply) => {
   try {
-    const { token } = req.body;
-    if (!token) {
-      return reply.status(400).send({ error: "Missing token" });
+    const { token, role } = req.body;
+
+    console.log("Incoming Google login with role:", role);
+
+    if (!token || !role) {
+      console.error("Missing token or role");
+      return reply.status(400).send({ error: "Missing token or role" });
     }
 
     const ticket = await googleClient.verifyIdToken({
@@ -20,9 +24,27 @@ const googleAuth = async (req, reply) => {
     const payload = ticket.getPayload();
     const { sub, email, name, picture } = payload;
 
-    const user = await findOrCreateUserByGoogle({ sub, email, name, picture });
+    console.log("Google payload:", { sub, email, name });
 
-    // Create JWT token with cleaner payload
+    const user = await findOrCreateUserByGoogle({
+      sub,
+      email,
+      name,
+      picture,
+      role,
+    });
+
+    if (!user) {
+      console.error("User not created or found.");
+      return reply.status(500).send({ error: "User creation failed" });
+    }
+
+    console.log("User found or created:", {
+      _id: user._id,
+      name: user.name,
+      role: user.role,
+    });
+
     const jwtToken = jwt.sign(
       { userId: user._id.toString(), role: user.role },
       SECRET_KEY,
@@ -41,7 +63,7 @@ const googleAuth = async (req, reply) => {
       token: jwtToken,
     });
   } catch (error) {
-    console.error("Google Auth Failed:", error.message);
+    console.error("Google Auth Failed:", error);
     reply.status(400).send({ error: "Authentication Failed" });
   }
 };

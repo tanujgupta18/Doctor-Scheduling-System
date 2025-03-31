@@ -54,6 +54,7 @@ process.on("SIGTERM", shutdown);
     // Register Routes
     fastify.register(require("./routes/authRoutes"));
     fastify.register(require("./routes/userRoutes"), { prefix: "/api" });
+    fastify.register(require("./routes/doctorRoutes"));
 
     // Start Server
     fastify.listen({ port: PORT, host: "0.0.0.0" }, (err, address) => {
