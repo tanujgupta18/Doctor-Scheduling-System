@@ -178,3 +178,15 @@ export const getDoctorProfile = async (doctorId) => {
     throw error.response?.data || { message: "Failed to fetch doctor profile" };
   }
 };
+
+// Fetch all users assigned to a specific doctor
+export const getDoctorUsers = async (doctorId) => {
+  try {
+    const response = await API.get(`/doctors/${doctorId}/users`);
+    return response.data;
+  } catch (error) {
+    throw (
+      error.response?.data || { message: "Failed to fetch users for doctor" }
+    );
+  }
+};

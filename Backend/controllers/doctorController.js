@@ -2,8 +2,12 @@ const {
   createDoctorProfile,
   getDoctorProfile,
   updateDoctorProfile,
+  getDoctorUsers,
   validateAvailability,
 } = require("../models/doctorModel");
+
+const { getDB } = require("../config/db");
+const { generateAvailableSlots } = require("../utils/slotGenerator");
 
 // Creating a new doctor profile
 async function createDoctor(req, reply) {
@@ -71,8 +75,45 @@ async function fetchDoctorProfile(req, reply) {
   }
 }
 
+// Fetching users assigned to a doctor
+async function fetchDoctorUsers(req, reply) {
+  const doctorId = req.params.id;
+
+  try {
+    const users = await getDoctorUsers(doctorId);
+    reply.send({ success: true, users });
+  } catch (error) {
+    console.error("Error fetching users for doctor:", error);
+    reply.status(500).send({ error: "Internal Server Error" });
+  }
+}
+
+// Get available slots for a doctor
+async function getDoctorAvailableSlots(req, reply) {
+  try {
+    const doctorId = req.params.id;
+    const db = getDB();
+
+    const doctor = await getDoctorProfile(doctorId);
+    if (!doctor) return reply.code(404).send({ error: "Doctor not found" });
+
+    const appointments = await db
+      .collection("appointments")
+      .find({ doctorId: doctor._id, status: { $ne: "Cancelled" } })
+      .toArray();
+
+    const slots = generateAvailableSlots(doctor, appointments);
+    reply.send({ success: true, slots });
+  } catch (err) {
+    console.error("Slot generation failed:", err);
+    reply.code(500).send({ error: "Failed to generate slots" });
+  }
+}
+
 module.exports = {
   createDoctor,
   updateDoctor,
   fetchDoctorProfile,
+  fetchDoctorUsers,
+  getDoctorAvailableSlots,
 };

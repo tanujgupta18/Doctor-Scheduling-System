@@ -35,6 +35,17 @@ async function updateDoctorProfile(doctorId, updatedData) {
   return result;
 }
 
+// Fetch Users Assigned to a Doctor
+async function getDoctorUsers(doctorId) {
+  const db = getDB();
+  const userCollection = db.collection("users");
+
+  const users = await userCollection
+    .find({ doctorId: new ObjectId(doctorId) })
+    .toArray();
+  return users;
+}
+
 // Helper to Validate Doctor Availability
 function validateAvailability(availability) {
   for (let item of availability) {
@@ -54,5 +65,6 @@ module.exports = {
   createDoctorProfile,
   getDoctorProfile,
   updateDoctorProfile,
+  getDoctorUsers,
   validateAvailability,
 };

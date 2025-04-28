@@ -3,6 +3,8 @@ const {
   createDoctor,
   updateDoctor,
   fetchDoctorProfile,
+  fetchDoctorUsers,
+  getDoctorAvailableSlots,
 } = require("../controllers/doctorController");
 
 async function doctorRoutes(fastify, options) {
@@ -11,6 +13,8 @@ async function doctorRoutes(fastify, options) {
       doctorGroup.post("/", createDoctor);
       doctorGroup.put("/:id", updateDoctor);
       doctorGroup.get("/:id", fetchDoctorProfile);
+      doctorGroup.get("/:id/users", fetchDoctorUsers);
+      doctorGroup.get("/:id/slots", getDoctorAvailableSlots);
     },
     { prefix: "/api/doctors" }
   );
